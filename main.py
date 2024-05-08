@@ -7,6 +7,22 @@ from mediapipe.tasks.python import vision
 from mediapipe import solutions
 from mediapipe.framework.formats import landmark_pb2
 
+#TODO The index shouldn't be hardcoded and should consider the dominant hand.
+def calculate_extended_point(pose_landmarks, index1 = 16, index2 = 20, multiplier = 10):
+    # Ensure the landmarks list has the required landmarks
+    if len(pose_landmarks) > max(index1, index2):
+        x_diff = pose_landmarks[index2].x - pose_landmarks[index1].x
+        y_diff = pose_landmarks[index2].y - pose_landmarks[index1].y
+
+        # Calculate the new point
+        new_x = pose_landmarks[index2].x + x_diff * multiplier
+        new_y = pose_landmarks[index2].y + y_diff * multiplier
+
+        return new_x, new_y
+    else:
+        print(f"Landmarks list does not have the required landmarks: {index1}, {index2}")
+        return None, None
+
 
 def draw_landmarks_on_image(rgb_image, detection_result):
     pose_landmarks_list = detection_result.pose_landmarks
@@ -15,6 +31,24 @@ def draw_landmarks_on_image(rgb_image, detection_result):
     # Loop through the detected poses to visualize.
     for idx in range(len(pose_landmarks_list)):
         pose_landmarks = pose_landmarks_list[idx]
+
+        # Calculate the extended point
+        new_x, new_y = calculate_extended_point(pose_landmarks)
+        if new_x is not None and new_y is not None:
+            # Convert the normalized coordinates to pixel coordinates
+            height, width, _ = rgb_image.shape
+            pixel_x = int(new_x * width)
+            pixel_y = int(new_y * height)
+
+            # Draw the extended point on the image
+            cv2.circle(annotate_image, (pixel_x, pixel_y), radius=5, color=(0, 255, 0), thickness=-1)
+
+            # Draw a line from index2 to the extended point
+            #TODO The index shouldn't be hardcoded.
+            index2_x = int(pose_landmarks[20].x * width)
+            index2_y = int(pose_landmarks[20].y * height)
+            cv2.line(annotate_image, (index2_x, index2_y), (pixel_x, pixel_y), color=(0, 255, 0), thickness=2)
+        
 
         # Draw the pose landmarks.
         pose_landmarks_proto = landmark_pb2.NormalizedLandmarkList()
@@ -85,3 +119,4 @@ if __name__ == '__main__':
     main()
     total_time = time.time() - start_time
     print(total_time)
+    
